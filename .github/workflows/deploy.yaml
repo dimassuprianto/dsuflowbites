@@ -1,83 +1,42 @@
-# Extracted from https://github.com/JulianCataldo/gh-actions/tree/main
-
-name: Flowbite Admin Dashboard — Deploy to Demo to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
+  # Trigger the workflow every time you push to the `main` branch
+  # Using a different branch name? Replace `main` with your branch’s name
   push:
-    branches: ['main']
-
+    branches: [ main ]
+  # Allows you to run this workflow manually from the Actions tab on GitHub.
   workflow_dispatch:
 
-env:
-  CI: true
-  FORCE_COLOR: true
-
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+# Allow this job to clone the repo and create a page deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  deploy:
-    name: Deploy demo
-    runs-on: ubuntu-20.04
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your repository using git
+        uses: actions/checkout@v5
+      - name: Install, build, and upload your site
+        uses: withastro/action@v5
+        # with:
+          # path: . # The root location of your Astro project inside the repository. (optional)
+          # node-version: 24 # The specific version of Node that should be used to build your site. Defaults to 22. (optional)
+          # package-manager: pnpm@latest # The Node package manager that should be used to install dependencies and build your site. Automatically detected based on your lockfile. (optional)
+          # build-cmd: pnpm run build # The command to run to build your site. Runs the package build script/task by default. (optional)
+        # env:
+          # PUBLIC_POKEAPI: 'https://pokeapi.co/api/v2' # Use single quotation marks for the variable value. (optional)
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    permissions:
-      pages: write
-      id-token: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.ref }}
-
-      # ————————————————————————————————————————————————————————————————————————
-
-      - name: Setup Node.js 18
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      # ————————————————————————————————————————————————————————————————————————
-
-      - name: Setup PNPM 7
-        uses: pnpm/action-setup@v2.2.2
-        with:
-          version: 7.18.1
-          run_install: false
-
-      - name: Get PNPM store directory
-        id: pnpm-cache
-        run: |
-          echo "::set-output name=pnpm_cache_dir::$(pnpm store path)"
-
-      - uses: actions/cache@v3
-        name: Setup PNPM cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      # ————————————————————————————————————————————————————————————————————————
-
-      - name: Install Node dependencies
-        # `production` to exclude dev. dependencies
-        run: NODE_ENV=production pnpm install
-
-      - name: Build demo website (dist)
-        run: 'NODE_ENV=production pnpm run build'
-
-      # ————————————————————————————————————————————————————————————————————————
-
-      # NOTE: Could be swapped with Vercel, Netlify…
-
-      - name: Upload artifact — Demo (dist)
-        uses: actions/upload-pages-artifact@v1
-        with:
-          path: ./dist
-
-      - name: Deploy to GitHub Pages — Demo (dist)
+      - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
